@@ -27,11 +27,11 @@ checks() {
         fi
     fi
     # Check if Nginx sites-available directory exists
-    if [ ! -d $nginx_sites ]; then
+    if [ ! -d "$nginx_sites" ]; then
         echo "Nginx sites-available directory does not exist. Do you want to create it? (y/n)"
         read create_sites_available
-        if [ $create_sites_available == "y" ]; then
-            mkdir -p $nginx_sites
+        if [ "$create_sites_available" == "y" ]; then
+            mkdir -p "$nginx_sites"
         else
             echo "Nginx sites-available directory is required for this script to work. Exiting..."
             exit 1
@@ -51,12 +51,36 @@ if [ -z "$domain_name" ]; then
     echo "Domain name cannot be empty. Exiting..."
     exit 1
 fi
+# IP address or FQDN of internal web server
 read -p "Enter Internal web server IP address: " proxy_pass_ip
-if [ -z "$proxy_pass_ip" ]; then
-    echo "Proxy pass IP address cannot be empty. Exiting..."
+retry_count=0
+# Validate IP address or FQDN of internal web server and prompt for input if invalid or empty until valid input is provided or retry count is reached
+while [ -z "$proxy_pass_ip" ] || [[ ! "$proxy_pass_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && [[ ! "$proxy_pass_ip" =~ ^[a-zA-Z0-9.-]+$ ]]; do
+    if [ $retry_count -ge 2 ]; then
+        echo "Invalid IP address or domain name. Exiting..."
+        exit 1
+    fi
+    echo "Proxy pass IP/FQDN address is empty or invalid. Please try again."
+    read -p "Enter Internal web server IP address: " proxy_pass_ip
+    retry_count=$((retry_count + 1))
+done
+if [[ ! "$proxy_pass_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && [[ ! "$proxy_pass_ip" =~ ^[a-zA-Z0-9.-]+$ ]]; then
+    echo "Invalid IP address or domain name. Exiting..."
     exit 1
 fi
-
+read -p "Is internal web server in http or https? (1 for http, 2 for https): " proxy_pass_scheme
+if [ -z "$proxy_pass_scheme" ]; then
+    echo "Scheme cannot be empty. Exiting..."
+    exit 1
+fi  # Set proxy pass scheme
+if [ "$proxy_pass_scheme" == "1" ]; then
+    proxy_pass_ip="http://$proxy_pass_ip"
+elif [ "$proxy_pass_scheme" == "2" ]; then
+    proxy_pass_ip="https://$proxy_pass_ip"
+else
+    echo "Invalid scheme. Exiting..."
+    exit 1
+fi
 # Set default listen port if not provided
 listen_port=${listen_port:-80}
 nginx_sites=/etc/nginx/sites-available  # Nginx sites-available directory
@@ -66,11 +90,11 @@ create_nginx_config() {
     # Create Nginx configuration file
     cat > $nginx_sites/${domain_name}.conf <<EOF
     server {
-        listen $listen_port;
+        listen 80;
         server_name $domain_name;
 
         location / {
-            proxy_pass http://$proxy_pass_ip;
+            proxy_pass $proxy_pass_ip;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -78,6 +102,7 @@ create_nginx_config() {
         }
     }
 EOF
+# Check if configuration file is created successfully
     if [ -d /$nginx_sites ]; then
         echo "Configuration file generated as '${domain_name}.conf' and saved in "
     else
@@ -98,6 +123,7 @@ EOF
             exit 1
         fi
     else
+        nginx -t 2>&1 | grep "nginx: \[emerg\]"
         echo "Nginx configuration is invalid. Please check the configuration file for errors."
         exit 1
     fi
@@ -118,8 +144,29 @@ read -p "DO you want to generate ssl certificate for this domain? (y/n): " ssl_c
 if [ "$ssl_cert" == "y" ]; then
     echo "Generating SSL certificate for $domain_name"
     cerbot_check
-    echo "Waiting for 2 minutes before requesting SSL certificate..."
-    sleep 120
+    echo "Waiting for 1 minute before requesting SSL certificate..."
+    read -p "Do you want to wait to verify DNS configuration before generating the certificate? (y/n): " wait_dns
+    if [ "$wait_dns" == "y" ]; then
+        read -p "Enter the number of seconds to wait: " wait_seconds
+        if [[ "$wait_seconds" =~ ^[0-9]+$ ]]; then
+            echo "Waiting for $wait_seconds seconds to verify DNS configuration..."
+            while [ $wait_seconds -gt 0 ]; do
+                echo -ne "$wait_seconds\033[0K\r"
+                sleep 1
+                : $((wait_seconds--))
+            done
+        else
+            echo "Invalid input. Exiting..."
+            exit 1
+        fi
+    fi
+
+    if [ -d "/etc/letsencrypt/live/$domain_name" ]; then
+        echo "SSL certificate already exists for $domain_name."
+        exit 0
+    else
+        echo "No existing SSL certificate found for $domain_name. Proceeding to generate a new one..."
+    fi
     certbot --nginx -d $domain_name
     if [ $? -eq 0 ]; then
         echo "SSL certificate generated successfully."
