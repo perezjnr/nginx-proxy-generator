@@ -1,6 +1,9 @@
 #!/bin/bash
 # Nginx Proxy Generator Script by Perez Jnr O. 2024
 # Tested on Ubuntu 24.04 LTS but should work on other Debian-based systems
+# This script generates Nginx configuration file for proxying requests to an internal web server. 
+# Useful for setting up reverse proxy for web applications running on different ports or servers behind a DMZ and or firewall.
+
 echo "Nginx Proxy Generator"
 echo "This script generates Nginx configuration file for proxying requests to an internal web server."
 echo "The script prompts for user input for listen port, domain name, and internal web server IP address."
@@ -140,6 +143,7 @@ EOF
         exit 1
     fi
 }
+
 link_nginx_config() {
     if [ ! -L /etc/nginx/sites-enabled/${domain_name}.conf ]; then
         echo "Creating symbolic link for /etc/nginx/sites-enabled/${domain_name}.conf"
@@ -154,6 +158,7 @@ link_nginx_config() {
         exit 1
     fi
 }
+
 create_nginx_config
 
 generate_ssl_certificate() {
@@ -162,8 +167,8 @@ generate_ssl_certificate() {
     if [ "$ssl_cert" == "y" ]; then
         echo "Generating SSL certificate for $domain_name"
         cerbot_check
-        echo "Waiting for 1 minute before requesting SSL certificate..."
         read -p "Do you want to wait to verify DNS configuration before generating the certificate? (y/n): " wait_dns
+        echo "Waiting for 1 minute before requesting SSL certificate..."
         if [ "$wait_dns" == "y" ]; then
             read -p "Enter the number of seconds to wait: " wait_seconds
             if [[ "$wait_seconds" =~ ^[0-9]+$ ]]; then
@@ -202,6 +207,7 @@ generate_ssl_certificate() {
         fi
     fi
 }
+
 # Check if Certbot is installed and install Certbot if not installed and user agrees to install it
 cerbot_check() {
     if command -v certbot > /dev/null 2>&1; then
