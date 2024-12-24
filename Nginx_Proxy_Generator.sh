@@ -81,7 +81,7 @@ read -p "Is internal web server in http or https? (1 for http, 2 for https): " p
 if [ -z "$proxy_pass_scheme" ]; then
     echo "Scheme cannot be empty. Exiting..."
     exit 1
-fi  # Set proxy pass scheme
+fi  # Set proxy pass scheme based on user input (1 for http, 2 for https)
 if [ "$proxy_pass_scheme" == "1" ]; then
     if [ "$listen_port" -ne 80 ] && [ "$listen_port" -ne 443 ]; then
         proxy_pass_ip="http://$proxy_pass_ip:$listen_port"
@@ -144,6 +144,7 @@ EOF
     fi
 }
 
+# Create symbolic link for Nginx configuration file
 link_nginx_config() {
     if [ ! -L /etc/nginx/sites-enabled/${domain_name}.conf ]; then
         echo "Creating symbolic link for /etc/nginx/sites-enabled/${domain_name}.conf"
