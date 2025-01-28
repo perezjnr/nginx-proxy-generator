@@ -50,7 +50,7 @@ checks() {
 
 checks
 # Prompt for user input
-read -p "Enter listen port (press enter for default HTTP (80)): " listen_port
+read -p "Enter origin web server listen port (press enter for default HTTP (80)): " listen_port
 if [ -z "$listen_port" ]; then
     # Default listen port
     listen_port=80
