@@ -3,20 +3,90 @@
 # Tested on Ubuntu 24.04 LTS but should work on other Debian-based systems
 # This script generates Nginx configuration file for proxying requests to an internal web server. 
 # Useful for setting up reverse proxy for web applications running on different ports or servers behind a DMZ and or firewall.
-# Remove an existing nginx website configuration
 
 display_info() {
-    echo "#####################Nginx Proxy Manager#########################################
-This script generates Nginx configuration file for proxying requests to an internal web server.
-The script prompts for user input for listen port, domain name, and internal web server IP address.
+    cat <<EOF 
+####################################################################
+# Nginx Proxy Generator Script
+# Version: 1.0
+# Author: PeeJay O.
+# Date: 2025
+# License: MIT License
+# Description: 
+This script generates Nginx configuration files for proxying requests to an internal web server.
+It allows you to add or remove websites easily and provides options for SSL certificate generation.
+The script is designed to be run on Debian-based systems (e.g., Ubuntu) and requires sudo permissions to run.
+####################################################################
+
+# NGINX Installation Check:
 The script checks if Nginx is installed and if the Nginx sites-available directory exists.
+If Nginx is installed, the script checks for the Nginx version and displays it.
 If Nginx is not installed, the script prompts the user to install Nginx.
 If the Nginx sites-available directory does not exist, the script prompts the user to create it.
-The script creates an Nginx configuration file with the user input and checks for Nginx syntax errors.
-If the configuration file is valid, the script links the configuration file to the sites-enabled directory and restarts Nginx.
-The script displays a success message if Nginx is restarted successfully.
-Existing file will be overwritten with new configuration file."
+####################################################################
+
+# Usage:
+    To run the script, use the following command:
+    ./Nginx_Proxy_Generator.sh [options]
+    # Options:
+    -a, --add       Add a new website
+    -r, --remove    Remove an existing website
+    -h, --help      Display this help message
+####################################################################
+
+# Sript Functionality:
+    The script prompts the user for input to add a new website configuration.
+    It collects the following information:
+    - Origin web server listen port (default is 80)
+    - Domain name (e.g., example.com www.example.com)
+    - Internal web server IP address or FQDN
+    - Scheme of the internal web server (HTTP or HTTPS)
+
+    - The script validates the user input for the internal web server IP address or FQDN.
+    - If the input is invalid or empty, it prompts the user to re-enter the information up to two times.
+    - If the user input is still invalid after two attempts, the script exits with an error message.
+    - The script also checks if the listen port is valid and sets the proxy pass URL accordingly.
+
+# The script creates an Nginx configuration file in the sites-available directory.
+    1. The configuration file includes the server block with the specified listen port, domain name, and proxy pass URL.
+    2. The proxy pass URL is constructed based on the user input for the internal web server IP address or FQDN and the scheme (HTTP or HTTPS).
+    3. The script also sets the necessary proxy headers for the Nginx server block.
+    4. The configuration file is named after the domain name provided by the user (e.g., example.com.conf).
+    5. The script checks for Nginx syntax errors using the `nginx -t` command.
+    6. If the configuration file is valid, the script creates a symbolic link to the configuration file in the sites-enabled directory.
+    7. If the configuration file is invalid, the script displays an error message and exits.
+    8. The script also prompts the user to generate an SSL certificate for the domain using Certbot.
+    9. If the user agrees, the script generates a self-signed SSL certificate and private key.
+    10. If the user does not agree, the script skips the SSL certificate generation step.
+    11. The script also provides an option to remove an existing Nginx website configuration.
+
+# The script lists the current websites configured in Nginx and prompts the user to select a website to remove.
+If the user selects a website to remove, the script disables the site by removing the symbolic link
+from the sites-enabled directory and deletes the configuration file from the sites-available directory.
+
+# The script then reloads the Nginx service to apply the changes.
+
+####################################################################
+# Note:
+This script is intended for use on Debian-based systems (e.g., Ubuntu).
+It requires sudo permissions to run.
+Make sure to run the script with sudo or as root user.
+####################################################################
+# Example:
+To add a new website configuration, run the script with the -a or --add option:
+./Nginx_Proxy_Generator.sh -a
+To remove an existing website configuration, run the script with the -r or --remove option:
+./Nginx_Proxy_Generator.sh -r
+# To display the help message, run the script with the -h or --help option:
+./Nginx_Proxy_Generator.sh -h
+####################################################################
+# This script is provided as-is and is not guaranteed to work in all environments.
+# Use it at your own risk. It is recommended to test the script in a safe environment
+# before using it in production.
+####################################################################
+EOF
 }
+
 
 
 # Set default listen port if not provided
@@ -28,33 +98,48 @@ nginx_sites=/etc/nginx/sites-available/  # Nginx sites-available directory
 # Function to check if the script is run as a sudoer
 check_sudo() {
     if [ "$EUID" -ne 0 ]; then
-        echo "This script must be run with sudo permission to allow writing to files. Please run with sudo permissions."
+        echo "This script must be run as root. Please run with sudo permissions."
         exit 1
     fi
 }
 
 # Run the sudo check
-check_sudo
+#check_sudo
 
 usage() {
-    display_info
-    echo "Usage: $0 [options]"
-    echo "Options:"
-    echo "  -a, --add       Add a new website"
-    echo "  -r, --remove    Remove an existing website"
-    echo "  -h, --help      Display this help message"
-    exit 1
+cat <<EOF
+"Usage: $0 [options]"
+Options:
+  -a, --add       Add a new website
+  -r, --remove    Remove an existing website
+  -h, --help      Display this help message
+  -i, --info      Display information about the script
+  -v, --version   Display current Nginx version
+  -s, --sites-available Display current Nginx sites-available directory
+  -e, --sites-enabled Display current Nginx sites-enabled directory
+  -a, --add       Add a new website
+EOF
 }
 
-# Function to prompt user to add or remove a website
-manage_nginx_websites()  {
-    if [[ $# -eq 0 ]]; then
-    echo "Select an option:"
+#menu_options options
+menu_options() {
+    echo "Menu:"
     echo "1. Add a new website"
     echo "2. Remove an existing website"
-    read -p "Enter your choice (1 or 2): " choice
+    echo "3. Display usage information"
+    echo "4. Display script information"
+    echo "5. Display current Nginx version"
+    echo "6. Display current Nginx sites-available directory"
+    echo "7. Display current Nginx sites-enabled directory"
+    echo "8. Exit"
+}
 
-    while true; do
+# Function to display the menu and handle user input
+diplay_menu(){
+while true; do
+        menu_options
+        read -rp "Enter your choice (1-8): " choice
+
         case $choice in
             1)
                 add_nginx_website
@@ -64,14 +149,47 @@ manage_nginx_websites()  {
                 remove_nginx_website
                 break
                 ;;
+            3)
+                usage
+                continue
+                ;;
+            4)
+                display_info 
+                continue           
+                ;;
+            5)
+                display_nginx_version  
+                continue              
+                ;;
+            6)
+                display_nginx_sites_available 
+                continue               
+                ;;
+            7)
+                display_nginx_sites_enabled 
+                continue               
+                ;;
+            8)
+                echo "Exiting..."
+                exit 0
+                break
+                ;;
             *)
-                echo "Invalid choice. Please enter 1 or 2."
-                read -p "Enter your choice (1 or 2): " choice
+                echo "Invalid choice. Please enter 1 or 8."
+                read -p "Enter your choice (1 or 8): " choice
                 ;;
         esac
     done
+}
+
+# Function to prompt user to add or remove a website
+manage_nginx_websites()  {
+    if [[ $# -eq 0 ]]; then
+        echo "Displaying Menu..."
+    diplay_menu
 else
     while [[ "$1" != "" ]]; do
+    
         case $1 in
             -a | --add )
                 add_nginx_website
@@ -83,15 +201,64 @@ else
                 ;;
             -h | --help )
                 usage
+                exit
+                ;;
+
+            -i | --info )
+                display_info
+                exit
+                ;;
+            -v | --version )
+                display_nginx_version
+                exit
+                ;;
+            -s | --sites-available )
+                display_nginx_sites_available
+                exit
+                ;;
+            -e | --sites-enabled )
+                display_nginx_sites_enabled
+                exit
                 ;;
             * )
                 usage
+                exit
                 ;;
         esac
         shift
     done
 fi
 
+}
+
+# Function to display current Nginx sites-available directory
+display_nginx_sites_available() {
+    echo "Current Nginx sites-available directory: $nginx_sites"
+    echo "List of available sites:"
+    if [ -d "$nginx_sites" ]; then
+        ls "$nginx_sites"
+    else
+        echo "Nginx sites-available directory does not exist. Please create it first."
+        exit 1
+    fi
+}
+
+# Function to display current Nginx version
+display_nginx_version() {
+    if command -v nginx > /dev/null 2>&1; then
+        nginx_version=$(nginx -v 2>&1)
+        echo "Current Nginx version: $nginx_version"
+    else
+        echo "Nginx is not installed. Please install Nginx to use this script."
+        exit 1
+    fi
+}
+
+#Display enabled Nginx Sites
+display_nginx_sites_enabled() {
+    echo "Current Nginx sites-enabled directory: /etc/nginx/sites-enabled/"
+    echo "List of enabled sites:"
+    ls /etc/nginx/sites-enabled/
 }
 
 # Function to add a new website
@@ -376,7 +543,8 @@ restart_nginx(){
     fi
 }
 
-
+# Run the sudo check
+check_sudo
 # check dependencies
 checks
 # Run the manage websites flow
