@@ -17,55 +17,150 @@ This script was created to provide more **direct control over Nginx reverse prox
 
 ---
 ## ✅ Prerequisites
-
+These neccessary application can be installed by the script if not installed already
 - Tested on **Ubuntu 24.04 LTS**, but compatible with other Debian-based systems.
 - **Nginx**.
-
-To install Nginx:
-## How It Works
-
-- The script checks if Nginx is installed and if the `sites-available` directory exists.
-- If Nginx is not installed, the script prompts the user to install it.
-- If the `sites-available` directory does not exist, the script prompts the user to create it.
-- The script creates an Nginx configuration file with the user input and checks for Nginx syntax errors.
-- If the configuration file is valid, the script links the configuration file to the `sites-enabled` directory and restarts Nginx.
-- The script displays a success message if Nginx is restarted successfully.
-- Existing files will be overwritten with the new configuration file.
-
-# Menu
-## Menu Items
-1. Add a new website"
-2. Remove an existing website"
-3. Display usage information"
-4. Display script information"
-5. Display current Nginx version"
-6. Display current Nginx sites-available directory"
-7. Display current Nginx sites-enabled directory"
-8. Exit"
-## CLI Options
-- -a, --add       Add a new website
-- -r, --remove    Remove an existing website
-- -h, --help      Display this help message
-- -i, --info      Display information about the script
-- -v, --version   Display current Nginx version
-- -s, --sites-available Display current Nginx sites-available directory
-- -e, --sites-enabled Display current Nginx sites-enabled directory
-- -a, --add       Add a new website
-# Execution of Script
-1. Ensure the script has execute permissions:
-    ```sh
-    sudo chmod +x Nginx_Proxy_Generator.sh
-    ```
-3. Run the script:
-   Display menu
-    ```sh
-    sudo ./Nginx_Proxy_Generator.sh
-    ```
-   Add new website
+- **CertBot**
+## 📥 Downloading the Script
    ```sh
-   sudo ./Nginx_Proxy_Generator.sh -a
+    curl -O https://raw.githubusercontent.com/perezjnr/Nginx/main/Nginx_Proxy_Generator.sh
+    sudo chmod +x Nginx_Proxy_Generator.sh
    ```
-4. Follow the prompts to provide the necessary information:
-    - Listen port (default is 80)
-    - Domain name
-    - Internal web server IP address
+To install Nginx Manually(script can auto install):
+
+```bash
+sudo apt update
+sudo apt install nginx
+```
+
+---
+## ⚙️ How It Works
+
+1. Checks if Nginx is installed.
+2. Confirms the existence of `/etc/nginx/sites-available` and `/etc/nginx/sites-enabled`.
+3. Prompts the user for required values:
+   - Port to listen on
+   - Domain name
+   - Internal IP address of web app
+4. Creates a configuration file in `sites-available`.
+5. Validates configuration using `nginx -t`.
+6. Enables the site by linking it to `sites-enabled`.
+7. Restarts Nginx and confirms success.
+
+> **Note:** Existing files with the same name will be overwritten.
+
+---
+
+## 📘 Menu Interface
+
+Run the script without arguments to access the interactive menu:
+
+```bash
+sudo ./Nginx_Proxy_Generator.sh
+```
+
+### Menu Options
+
+| Option | Description                                  |
+|--------|----------------------------------------------|
+| 1      | Add a new website configuration              |
+| 2      | Remove an existing website configuration     |
+| 3      | Display usage information                    |
+| 4      | Display script information                   |
+| 5      | Display current Nginx version                |
+| 6      | Show Nginx `sites-available` directory path  |
+| 7      | Show Nginx `sites-enabled` directory path    |
+| 8      | Exit                                          |
+
+---
+
+## 🖥️ CLI Options
+
+You can run specific actions directly from the command line:
+
+```bash
+sudo ./Nginx_Proxy_Generator.sh [option]
+```
+
+### Supported Flags
+
+| Short Flag | Long Flag           | Description                                      |
+|------------|---------------------|--------------------------------------------------|
+| `-a`       | `--add`             | Add a new website configuration                  |
+| `-r`       | `--remove`          | Remove an existing website configuration         |
+| `-h`       | `--help`            | Display help/usage information                   |
+| `-i`       | `--info`            | Show detailed script information                 |
+| `-v`       | `--version`         | Display current installed Nginx version          |
+| `-s`       | `--sites-available` | Show `sites-available` directory path            |
+| `-e`       | `--sites-enabled`   | Show `sites-enabled` directory path              |
+
+> Example:
+> ```bash
+> sudo ./Nginx_Proxy_Generator.sh --add
+> ```
+
+---
+
+## 📌 Example Use Case
+
+You're running a self-hosted app on `192.168.1.100:5000` and want to serve it externally at `http://app.example.com`.
+
+### What you want:
+
+- External visitors reach `app.example.com`
+- Internally it goes to `192.168.1.100:5000`
+- Proxy should listen on default HTTP port (80)
+
+### What to do:
+
+```bash
+sudo ./Nginx_Proxy_Generator.sh --add
+```
+
+Then when prompted, enter:
+
+- **Listen Port**: `80`
+- **Domain Name**: `app.example.com`
+- **Internal IP**: `192.168.1.100`
+- **Internal Port**: `5000`
+
+This will:
+
+- Generate a reverse proxy config
+- Link it to `sites-enabled`
+- Confirm if you want SSL cert and it will automatically request for **Lets Encrypt** certificate using certbot 
+- Reload Nginx
+
+You're now live with a fully functional reverse proxy.
+
+---
+
+## 🎯 Future Plans
+
+Features that may be added soon:
+
+```txt
+- Web interface (optional) to accompany CLI tool
+- Improve SSL support for existing http sites
+- Backup/restore of existing configurations
+- Access logging, better validation and conflict checks
+- Modular plugin-like add-ons (e.g., rate limiting, headers, etc.)
+```
+
+---
+
+## 🧑‍💻 Contributing
+
+Pull requests and suggestions are welcome! Feel free to fork this repo and propose new features or improvements.
+
+---
+
+## 📄 License
+
+GNU General Public License v3.0
+
+---
+
+## 🙏 Acknowledgements
+
+Inspired by Nginx Proxy Manager and the need for low-footprint CLI-based tools in self-hosted environments.
