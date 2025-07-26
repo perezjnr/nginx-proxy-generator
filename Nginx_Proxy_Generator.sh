@@ -1,10 +1,11 @@
 #!/bin/bash
-# Color definitions for readability
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-GREY='\033[1;30m'
-NC='\033[0m' # No Color
+# Load Configs
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+#source "$SCRIPT_DIR/config/colours.sh"
+# Load Functions
+for file in utils/*.sh checks/*.sh prompts/*.sh config/*.sh; do
+    source "$SCRIPT_DIR/$file"
+done
 
 # Log file
 LOG_FILE="/var/log/nginx_proxy_generator.log"
@@ -101,18 +102,47 @@ EOF
 
 
 
-# Set default listen port if not provided
-listen_port=${listen_port:-80}
-nginx_sites_available=/etc/nginx/sites-available/  # Nginx sites-available directory
-# Check if Nginx is installed and sites-available directory exists
 
 
 # Function to check if the script is run as a sudoer
-check_sudo() {
+Prerequisites_checks() {
+    echo -e "${GREY}Checking prerequisites...${NC}"
     if [ "$EUID" -ne 0 ]; then
         echo -e "${RED} This script must be run as root. Please run with sudo permissions.${NC}"
         exit 1
     fi
+    echo -e "${GREEN}Running as root user.${NC}"
+    echo -e "${GREY}Checking if Nginx is installed...${NC}"
+    check_nginx_installed
+    echo -e "${GREY}Checking if Certbot is installed...${NC}"
+    check_and_install_certbot
+    echo -e "${GREY}Checking if Netcat (nc) is installed...${NC}"
+    check_and_install_nc
+    echo -e "${GREEN}Prerequisites checks completed successfully.${NC}"
+}
+
+detect_nginx_paths() {
+    # Default for Debian/Ubuntu
+    nginx_sites_available="/etc/nginx/sites-available"
+    nginx_sites_enabled="/etc/nginx/sites-enabled"
+    # Alpine
+    if [ -f /etc/alpine-release ]; then
+        nginx_sites_available="/etc/nginx/conf.d"
+        nginx_sites_enabled="/etc/nginx/conf.d"
+
+    # RHEL/CentOS/Fedora
+    elif grep -qi 'centos\|rhel\|fedora' /etc/os-release 2>/dev/null; then
+        nginx_sites_available="/etc/nginx/conf.d"
+        nginx_sites_enabled="/etc/nginx/conf.d"
+
+    # Arch Linux
+    elif grep -qi 'arch' /etc/os-release 2>/dev/null; then
+        nginx_sites_available="/etc/nginx/conf.d"
+        nginx_sites_enabled="/etc/nginx/conf.d"
+    fi
+
+    echo -e "${GREEN}Using Nginx sites-available: $nginx_sites_available${NC}"
+    echo -e "${GREEN}Using Nginx sites-enabled:   $nginx_sites_enabled${NC}"
 }
 
 show_usage() {
@@ -240,10 +270,9 @@ fi
 
 # Function to display current Nginx sites-available directory
 display_nginx_sites_available() {
-    echo -e "${YELLOW}Current Nginx sites-available directory: $nginx_sites_available${NC}"
-    echo -e "${GREEN}List of available sites:${NC}"
-    if [ -d "$nginx_sites_available" ]; then
-        ls "$nginx_sites_available"
+
+    if [ -d "$NGINX_SITES_AVAILABLE" ]; then
+        ls "$NGINX_SITES_AVAILABLE"
     else
         echo -e "${RED}Nginx sites-available directory does not exist. Please create it first.${NC}"
         exit 1
@@ -263,9 +292,9 @@ display_nginx_version() {
 
 #Display enabled Nginx Sites
 display_nginx_sites_enabled() {
-    echo -e "${YELLOW}Current Nginx sites-enabled directory: /etc/nginx/sites-enabled/${NC}"
+    echo -e "${YELLOW}Current Nginx sites-enabled directory: ${nginx_sites_enabled}${NC}"
     echo -e "${GREEN}List of enabled sites:${NC}"
-    ls /etc/nginx/sites-enabled/
+    ls "$nginx_sites_enabled"
 }
 
 # Function to add a new website
@@ -294,7 +323,12 @@ check_nginx_installed() {
             exit 1
         fi
     fi
+
     # Check if Nginx sites-available directory exists
+    echo -e "${GREY}Detecting Nginx paths...${NC}"
+
+    detect_nginx_paths
+
     if [ ! -d "$nginx_sites_available" ]; then
         echo -e "${YELLOW}Nginx sites-available directory does not exist.${NC} Do you want to create it? (y/n)"
 
@@ -317,7 +351,7 @@ prompt_domain_name() {
     while (( retry_count < max_retries )); do
         read -rp "$(echo -e "${GREEN}Enter (FQDN) domain name to be used for website (e.g. example.com, www.example.com): ${NC}")" domain_name
         domain_name="${domain_name,,}"  # lowercase
-
+        echo -e "${GREY}Using domain name: $domain_name${NC}"
         if [[ -z "$domain_name" ]]; then
             echo -e "${RED}Domain name cannot be empty.${NC}"
         elif [[ ! "$domain_name" =~ ^([a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$ ]]; then
@@ -357,48 +391,6 @@ prompt_domain_name() {
     exit 1
 }
 
-# Function to prompt for the origin/host web server IP address or FQDN
-prompt_ip_address() {
-    local retry_count=0
-    local max_retries=5
-
-    while true; do
-        read -rp "$(echo -e "${GREEN}Enter origin/host web server IP address or FQDN: ${NC}")" proxy_pass_ip
-
-        # Check for empty input
-        if [[ -z "$proxy_pass_ip" ]]; then
-            echo -e "${YELLOW}Input cannot be empty. Please try again.${NC}"
-        # Check valid IP or FQDN format
-    
-        elif [[ "$proxy_pass_ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ || "$proxy_pass_ip" =~ ^[a-zA-Z0-9.-]+$ ]]; then
-            # Check if reachable
-
-            if ping -c 2 -W 2 "$proxy_pass_ip" &>/dev/null; then
-                echo -e "${GREEN}Host $proxy_pass_ip is reachable.${NC}"
-                break
-            else
-                echo -e "${RED}Host $proxy_pass_ip is unreachable.${NC}"
-                read -rp "Do you want to continue anyway? (y/n): " yn
-                case "$yn" in
-                    [Yy]*) echo -e "${GREEN}Continuing...${NC}";;
-                    *) echo -e "${RED}Exiting.${NC}"; exit 1;;
-                esac
-            fi
-            # Optional DNS check
-            if ! host "$domain_name" > /dev/null 2>&1; then
-                echo -e "${YELLOW}Warning: $domain_name is not resolving. Check DNS settings.${NC}"
-            fi
-        else
-            echo -e "${YELLOW}Invalid IP address or FQDN format. Please try again.${NC}"
-        fi
-
-        ((retry_count++))
-        if (( retry_count >= max_retries )); then
-            echo -e "${RED}Too many invalid attempts. Exiting.${NC}"
-            exit 1
-        fi
-    done
-}
 
 
 prompt_proxy_scheme() {
@@ -409,21 +401,21 @@ prompt_proxy_scheme() {
         exit 1
     fi 
     if [ "$proxy_pass_scheme" == "1" ]; then
-        if [ "$listen_port" -ne 80 ] && [ "$listen_port" -ne 443 ]; then
-            echo -e "${GREY}Using custom port $listen_port for HTTP.${NC}"
-            proxy_pass_ip="http://$proxy_pass_ip:$listen_port"
+        if [ "$LISTEN_PORT" -ne 80 ] && [ "$LISTEN_PORT" -ne 443 ]; then
+            echo -e "${GREY}Using custom port $LISTEN_PORT for HTTP.${NC}"
+            PROXY_PASS_IP="http://$PROXY_PASS_IP:$LISTEN_PORT"
         else
             echo -e "${GREY}Using default port 80 for HTTP.${NC}"
-            proxy_pass_ip="http://$proxy_pass_ip"
+            PROXY_PASS_IP="http://$PROXY_PASS_IP"
         fi
     elif [ "$proxy_pass_scheme" == "2" ]; then
-        if [ "$listen_port" -ne 80 ] && [ "$listen_port" -ne 443 ]; then
-            echo -e "${GREY}Using custom port $listen_port for HTTPS.${NC}"
-            proxy_pass_ip="https://$proxy_pass_ip:$listen_port"
+        if [ "$LISTEN_PORT" -ne 80 ] && [ "$LISTEN_PORT" -ne 443 ]; then
+            echo -e "${GREY}Using custom port $LISTEN_PORT for HTTPS.${NC}"
+            PROXY_PASS_IP="https://$PROXY_PASS_IP:$LISTEN_PORT"
         else
             echo -e "${GREY}Using default port 443 for HTTPS.${NC}"
-            proxy_pass_ip="https://$proxy_pass_ip"
-            
+            PROXY_PASS_IP="https://$PROXY_PASS_IP"
+
         fi
     else
         echo -e "${RED}Invalid scheme. Exiting...${NC}"
@@ -434,23 +426,23 @@ prompt_proxy_scheme() {
 prompt_server_port() {
     # Prompt for user input
 while true; do
-    read -rp "$(echo -e "${GREEN}Enter origin/host web server listen port (press enter for default HTTP (80)):${NC}")" listen_port
-    if [[ -z "$listen_port" ]]; then
-        listen_port=80
+    read -rp "$(echo -e "${GREEN}Enter origin/host web server listen port (press enter for default HTTP (80)):${NC}")" LISTEN_PORT
+    if [[ -z "$LISTEN_PORT" ]]; then
+        LISTEN_PORT=80
         break
-    elif [[ "$listen_port" =~ ^[0-9]+$ ]]; then
+    elif [[ "$LISTEN_PORT" =~ ^[0-9]+$ ]]; then
         break
     else
         echo -e "${RED}Invalid input. Please enter a numeric value only.${NC}"
     fi
 done
     # Check if the port is valid
-    if [[ "$listen_port" -lt 1 || "$listen_port" -gt 65535 ]]; then
+    if [[ "$LISTEN_PORT" -lt 1 || "$LISTEN_PORT" -gt 65535 ]]; then
         echo -e "${RED}Invalid port number. Please enter a value between 1 and 65535.${NC}"
         prompt_server_port
     else
-        echo -e "${GREY}Origin/Host server listen port: $listen_port${NC}"
-    fi 
+        echo -e "${GREY}Origin/Host server listen port: $LISTEN_PORT${NC}"
+    fi
 }
 
 # Function to prompt for user input
@@ -472,7 +464,7 @@ create_nginx_config() {
         server_name $domain_name;
 
         location / {
-            proxy_pass $proxy_pass_ip;
+            proxy_pass $PROXY_PASS_IP;
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
             proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -488,8 +480,8 @@ EOF
         exit 1
     fi
     # Check for Nginx syntax errors
-    
-    if nginx -t; then
+
+    if nginx -t -c "$nginx_sites_available"; then
 
         link_nginx_config
         echo -e "${GREY}Nginx configuration is valid. Restarting Nginx...${NC}"
@@ -508,16 +500,32 @@ EOF
 
 # Create symbolic link for Nginx configuration file
 link_nginx_config() {
-    if [ ! -L /etc/nginx/sites-enabled/"${domain_name}".conf ]; then
-        echo -e "${GREY}Creating symbolic link for /etc/nginx/sites-enabled/${domain_name}.conf${NC}"
-        if ln -s "$nginx_sites_available/${domain_name}.conf" "/etc/nginx/sites-enabled/${domain_name}.conf"; then
+    if [ ! -L "${nginx_sites_enabled}/${domain_name}.conf" ]; then
+        echo -e "${GREY}Creating symbolic link for ${nginx_sites_enabled}/${domain_name}.conf${NC}"
+        if ln -s "$nginx_sites_available/${domain_name}.conf" "${nginx_sites_enabled}/${domain_name}.conf"; then
             echo -e "${GREEN}Configuration file symbolic link created.${NC}"
         else
             echo -e "${RED}Failed to create symbolic link for configuration file. Exiting...${NC}"
             exit 1
         fi
     else
-        echo -e "${YELLOW}Symbolic link already exists for /etc/nginx/sites-enabled/${domain_name}.conf${NC}"
+        echo -e "${YELLOW}Symbolic link already exists for ${nginx_sites_enabled}/${domain_name}.conf${NC}"
+    fi
+}
+
+detect_certbot_live_path() {
+    
+    default_path="/etc/letsencrypt/live"
+
+    if [ -d "$default_path" ]; then
+        CERTBOT_LIVE_PATH="$default_path"
+    else
+        CERTBOT_LIVE_PATH=$(find /etc -type d -path "*/letsencrypt/live" 2>/dev/null | head -n 1)
+    fi
+    echo -e "${GREY}Detected Certbot live path: $CERTBOT_LIVE_PATH${NC}"
+    if [ -z "$CERTBOT_LIVE_PATH" ]; then
+        echo -e "${RED}Certbot live path not found. Please verify Certbot is installed and certificates are issued.${NC}"
+        return 1
     fi
 }
 
@@ -533,8 +541,8 @@ generate_ssl_certificate() {
     read -rp "$(echo -e "${YELLOW}Do you want to generate SSL certificate for this domain? (y/n): ${NC}")" ssl_cert
 
     if [ "$ssl_cert" == "y" ]; then
-        echo -e "${GREY}Generating SSL certificate for $domain_name${NC}"
-        cerbot_check
+        echo -e "${GREY}Generating SSL certificate for $DOMAIN_NAME${NC}"
+
         read -rp "$(echo -e "${YELLOW}Do you want to wait to verify DNS configuration before generating the certificate? (y/n): ${NC}")" wait_dns
         echo -e "$(echo -e "${YELLOW}Waiting for 1 minute before requesting SSL certificate...${NC}")"
         if [ "$wait_dns" == "y" ]; then
@@ -551,12 +559,13 @@ generate_ssl_certificate() {
                 exit 1
             fi
         fi
+        # Detect Certbot live path
+        detect_certbot_live_path
+        if [ -d "$CERTBOT_LIVE_PATH/$DOMAIN_NAME" ]; then
+            echo -e "${YELLOW}SSL certificate already exists for $DOMAIN_NAME.${NC}"
+            echo -e "${GREY}Reinstalling SSL certificate for $DOMAIN_NAME...${NC}"
 
-        if [ -d "/etc/letsencrypt/live/$domain_name" ]; then
-            echo -e "${YELLOW}SSL certificate already exists for $domain_name.${NC}"
-            echo -e "${GREY}Reinstalling SSL certificate for $domain_name...${NC}"
-            
-            if certbot --nginx --reinstall -d "$domain_name"; then
+            if certbot --nginx --reinstall -d "$DOMAIN_NAME"; then
                 echo -e "${GREEN}SSL certificate reinstalled successfully.${NC}"
             else
                 echo -e "${RED}Failed to reinstall SSL certificate. Please check the Certbot logs for more details.${NC}"
@@ -564,10 +573,10 @@ generate_ssl_certificate() {
             fi
             exit 0
         else
-            echo -e "${YELLOW}No existing SSL certificate found for ""$domain_name"". Proceeding to generate a new one...${NC}"
+            echo -e "${YELLOW}No existing SSL certificate found for $DOMAIN_NAME. Proceeding to generate a new one...${NC}"
         fi
 
-        if certbot --nginx -d "$domain_name"; then
+        if certbot --nginx -d "$DOMAIN_NAME"; then
             echo -e "${GREEN}SSL certificate generated successfully.${NC}"
         else
             echo -e "${RED}Failed to generate SSL certificate. Please check the Certbot logs for more details.${NC}"
@@ -577,20 +586,73 @@ generate_ssl_certificate() {
 }
 
 # Check if Certbot is installed and install Certbot if not installed and user agrees to install it
-cerbot_check() {
+check_and_install_certbot() {
     if command -v certbot > /dev/null 2>&1; then
-        echo -e "${GREEN}Certbot is installed${NC}"
-    else
-        echo -e "${RED}Certbot is not installed. Do you want to install Certbot? (y/n)${NC}"
-        read -rp "$(echo -e "${GREEN}Do you want to install Certbot? (y/n): ${NC}")" install_certbot
-        if [ "$install_certbot" == "y" ]; then
-            apt-get update && apt-get install certbot python3-certbot-nginx -y
+        echo -e "${GREEN}Certbot is already installed.${NC}"
+        return
+    fi
+
+    echo -e "${RED}Certbot is not installed.${NC}"
+    read -rp "$(echo -e "${GREEN}Do you want to install Certbot? (y/n): ${NC}")" install_certbot
+    if [[ "$install_certbot" =~ ^[Yy]$ ]]; then
+        echo -e "${GREY}Attempting to install Certbot...${NC}"
+
+        INSTALL_CMD=""
+        if command -v apt > /dev/null; then
+            INSTALL_CMD="sudo apt update && sudo apt install -y certbot python3-certbot-nginx"
+        elif command -v dnf > /dev/null; then
+            INSTALL_CMD="sudo dnf install -y certbot python3-certbot-nginx"
+        elif command -v yum > /dev/null; then
+            INSTALL_CMD="sudo yum install -y certbot python3-certbot-nginx"
+        elif command -v pacman > /dev/null; then
+            INSTALL_CMD="sudo pacman -Sy --noconfirm certbot certbot-nginx"
+        elif command -v apk > /dev/null; then
+            INSTALL_CMD="sudo apk add certbot certbot-nginx"
         else
-            echo -e "${RED}Certbot is required for this script to work. Exiting...${NC}"
+            echo -e "${RED}Unsupported package manager. Please install Certbot manually.${NC}"
             exit 1
         fi
+
+        if ! eval "$INSTALL_CMD"; then
+            echo -e "${RED}Certbot installation failed. Please check your system or install manually.${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}Certbot is required. Exiting...${NC}"
+        exit 1
     fi
 }
+
+check_and_install_nc() {
+    if ! command -v nc &> /dev/null; then
+        echo -e "${YELLOW}Netcat (nc) is not installed.${NC}"
+        read -rp "Do you want to install netcat? (y/n): " yn
+        case "$yn" in
+            [Yy]*)
+                echo -e "${GREY}Attempting to install netcat...${NC}"
+                if command -v apt &> /dev/null; then
+                    sudo apt update && sudo apt install -y netcat
+                elif command -v yum &> /dev/null; then
+                    sudo yum install -y nc
+                elif command -v dnf &> /dev/null; then
+                    sudo dnf install -y nc
+                elif command -v pacman &> /dev/null; then
+                    sudo pacman -Sy --noconfirm openbsd-netcat
+                else
+                    echo -e "${RED}Unsupported package manager. Please install netcat manually.${NC}"
+                    exit 1
+                fi
+                ;;
+            *)
+                echo -e "${RED}Netcat is required. Exiting...${NC}"
+                exit 1
+                ;;
+        esac
+    else
+        echo -e "${GREEN}Netcat (nc) is already installed.${NC}"
+    fi
+}
+
 
 # This function removes an existing Nginx website configuration.
 # It takes the website's domain name as an argument, disables the site,
@@ -632,8 +694,9 @@ remove_nginx_website() {
     fi
 
     # Remove symbolic link
-    if [ -L "/etc/nginx/sites-enabled/${remove_domain_name}.conf" ]; then
-        rm "/etc/nginx/sites-enabled/${remove_domain_name}.conf"
+    echo -e "${GREY}Removing symbolic link for $remove_domain_name...${NC}"
+    if [ -L "$nginx_sites_enabled/${remove_domain_name}.conf" ]; then
+        rm "$nginx_sites_enabled/${remove_domain_name}.conf"
         echo -e "${YELLOW}Removed symbolic link for $remove_domain_name${NC}"
     else
         echo -e "${RED}Symbolic link for $remove_domain_name does not exist.${NC}"
@@ -641,21 +704,42 @@ remove_nginx_website() {
     restart_nginx
 }
 
-restart_nginx(){
-        # Restart Nginx
-    echo "Restarting Nginx..."
-    
+restart_nginx() {
+    echo -e "${GREY}Restarting Nginx...${NC}"
+
+    # Check if systemctl exists
+    if ! command -v systemctl > /dev/null 2>&1; then
+        echo -e "${RED}Systemctl not found. Trying 'service' command as fallback...${NC}"
+        if command -v service > /dev/null 2>&1; then
+            if service nginx restart; then
+                echo -e "${GREEN}Nginx restarted successfully using service command.${NC}"
+            else
+                echo -e "${RED}Failed to restart Nginx using service command.${NC}"
+                echo -e "${YELLOW}Check logs: /var/log/nginx/error.log or run 'service nginx status'${NC}"
+                exit 1
+            fi
+        else
+            echo -e "${RED}Neither systemctl nor service found. Cannot manage Nginx.${NC}"
+            exit 1
+        fi
+        return
+    fi
+
+    # Try to restart with systemctl
     if systemctl restart nginx; then
         echo -e "${GREEN}Nginx restarted successfully.${NC}"
     else
-        echo -e "${RED}Failed to restart Nginx. Please check the Nginx logs for more details.${NC}"
+        echo -e "${RED}Failed to restart Nginx using systemctl.${NC}"
+        echo -e "${YELLOW}Check logs: journalctl -u nginx or /var/log/nginx/error.log${NC}"
         exit 1
     fi
 }
 
-# Run the sudo check
-check_sudo
-# check dependencies
-check_nginx_installed
+
+# Main script execution starts here
+echo -e "${GREEN}Welcome to the Nginx Proxy Generator Script!${NC}"
+# check prerequisites and dependencies
+Prerequisites_checks
+
 # Run the manage websites flow
 manage_nginx_websites "$@"

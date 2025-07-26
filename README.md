@@ -21,6 +21,7 @@ These neccessary application can be installed by the script if not installed alr
 - Tested on **Ubuntu 24.04 LTS**, but compatible with other Debian-based systems.
 - **Nginx**.
 - **CertBot**
+- **Netcat**
 ## 📥 Downloading the Script
    ```sh
     curl -O https://raw.githubusercontent.com/PeeJayTec/nginx-proxy-generator/main/Nginx_Proxy_Generator.sh
