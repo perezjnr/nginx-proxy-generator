@@ -23,7 +23,7 @@ These neccessary application can be installed by the script if not installed alr
 - **CertBot**
 ## 📥 Downloading the Script
    ```sh
-    curl -O https://raw.githubusercontent.com/perezjnr/Nginx/main/Nginx_Proxy_Generator.sh
+    curl -O https://raw.githubusercontent.com/PeeJayTec/nginx-proxy-generator/main/Nginx_Proxy_Generator.sh
     sudo chmod +x Nginx_Proxy_Generator.sh
    ```
 To install Nginx Manually(script can auto install):
