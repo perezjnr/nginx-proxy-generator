@@ -24,8 +24,8 @@ These neccessary application can be installed by the script if not installed alr
 - **Netcat**
 ## 📥 Downloading the latest release
    ```sh
-    wget https://github.com/PeeJayTec/nginx-proxy-generator/archive/refs/tags/latest.tar.gz
-    tar -xzf latest.tar.gz && cd nginx-proxy-generator-latest
+    wget https://github.com/PeeJayTec/nginx-proxy-generator/releases/latest/download/nginx-proxy-generator.tar.gz
+    tar -xzf nginx-proxy-generator.tar.gz && cd nginx-proxy-generator
     sudo chmod +x main.sh
    ```
 To install Nginx Manually(script can auto install):
