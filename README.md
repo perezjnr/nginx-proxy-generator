@@ -22,9 +22,10 @@ These neccessary application can be installed by the script if not installed alr
 - **Nginx**.
 - **CertBot**
 - **Netcat**
-## 📥 Downloading the Script
+## 📥 Downloading the latest release
    ```sh
-    curl -O https://raw.githubusercontent.com/PeeJayTec/nginx-proxy-generator/main/main.sh
+    wget https://github.com/PeeJayTec/nginx-proxy-generator/archive/refs/tags/latest.tar.gz
+    tar -xzf latest.tar.gz && cd nginx-proxy-generator-latest
     sudo chmod +x main.sh
    ```
 To install Nginx Manually(script can auto install):
@@ -115,7 +116,7 @@ You're running a self-hosted app on `192.168.1.100:5000` and want to serve it ex
 ### What to do:
 
 ```bash
-sudo ./Nginx_Proxy_Generator.sh --add
+sudo ./main.sh --add
 ```
 
 Then when prompted, enter:
