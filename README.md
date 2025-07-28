@@ -24,8 +24,8 @@ These neccessary application can be installed by the script if not installed alr
 - **Netcat**
 ## 📥 Downloading the Script
    ```sh
-    curl -O https://raw.githubusercontent.com/PeeJayTec/nginx-proxy-generator/main/Nginx_Proxy_Generator.sh
-    sudo chmod +x Nginx_Proxy_Generator.sh
+    curl -O https://raw.githubusercontent.com/PeeJayTec/nginx-proxy-generator/main/main.sh
+    sudo chmod +x main.sh
    ```
 To install Nginx Manually(script can auto install):
 
@@ -57,7 +57,7 @@ sudo apt install nginx
 Run the script without arguments to access the interactive menu:
 
 ```bash
-sudo ./Nginx_Proxy_Generator.sh
+sudo ./main.sh
 ```
 
 ### Menu Options
@@ -80,7 +80,7 @@ sudo ./Nginx_Proxy_Generator.sh
 You can run specific actions directly from the command line:
 
 ```bash
-sudo ./Nginx_Proxy_Generator.sh [option]
+sudo ./main.sh [option]
 ```
 
 ### Supported Flags
@@ -97,7 +97,7 @@ sudo ./Nginx_Proxy_Generator.sh [option]
 
 > Example:
 > ```bash
-> sudo ./Nginx_Proxy_Generator.sh --add
+> sudo ./main.sh --add
 > ```
 
 ---
