@@ -3,9 +3,29 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #source "$SCRIPT_DIR/config/colours.sh"
 # Load Functions
-for file in utils/*.sh checks/*.sh prompts/*.sh config/*.sh; do
-    source "$SCRIPT_DIR/$file"
-done
+source "$SCRIPT_DIR/checks/certbot.sh"
+source "$SCRIPT_DIR/checks/dependencies.sh"
+source "$SCRIPT_DIR/checks/netcat.sh"
+source "$SCRIPT_DIR/checks/nginx.sh"
+
+source "$SCRIPT_DIR/config/user_config.sh"
+source "$SCRIPT_DIR/config/colours.sh"
+source "$SCRIPT_DIR/config/constants.sh"
+
+source "$SCRIPT_DIR/prompts/host_ip.sh"
+source "$SCRIPT_DIR/prompts/host_server_port.sh"
+source "$SCRIPT_DIR/prompts/http_https_scheme.sh"
+source "$SCRIPT_DIR/prompts/domain_name.sh"
+
+source "$SCRIPT_DIR/utils/certbot_path.sh"
+source "$SCRIPT_DIR/utils/create_nginx_config_file.sh"
+source "$SCRIPT_DIR/utils/menu.sh"
+source "$SCRIPT_DIR/utils/menu_options.sh"
+source "$SCRIPT_DIR/utils/nginx_path.sh"
+source "$SCRIPT_DIR/utils/project_info.sh"
+source "$SCRIPT_DIR/utils/remove_website.sh"
+source "$SCRIPT_DIR/utils/request_ssl_certificate.sh"
+source "$SCRIPT_DIR/utils/restart_nginx.sh"
 
 # Log file
 LOG_FILE="/var/log/nginx_proxy_generator.log"
@@ -83,8 +103,14 @@ fi
 display_nginx_sites_available() {
 
     echo -e "${YELLOW}Current Nginx sites-available directory: ${NGINX_SITES_AVAILABLE}${NC}"
+    
     if [ -d "$NGINX_SITES_AVAILABLE" ]; then
-        ls "$NGINX_SITES_AVAILABLE"
+        echo -e "${GREY}List of available sites:${NC}"
+        for f in "$NGINX_SITES_AVAILABLE"/*; do
+            if [[ -f "$f"  && "$f" != *.bak ]]; then
+                echo -e "${GREEN} $(basename "$f")${NC}"
+            fi
+        done
     else
         echo -e "${RED}Nginx sites-available directory does not exist. Please create it first.${NC}"
         exit 1
@@ -105,8 +131,17 @@ display_nginx_version() {
 #Display enabled Nginx Sites
 display_nginx_sites_enabled() {
     echo -e "${YELLOW}Current Nginx sites-enabled directory: ${NGINX_SITES_ENABLED}${NC}"
-    echo -e "${GREEN}List of enabled sites:${NC}"
-    ls "$NGINX_SITES_ENABLED"
+    if [ -d "$NGINX_SITES_ENABLED" ]; then
+        echo -e "${GREY}List of enabled sites:${NC}"
+        for f in "$NGINX_SITES_ENABLED"/*; do
+            if [[ -f "$f"  && "$f" != *.bak ]]; then
+                echo -e "${GREEN} $(basename "$f")${NC}"
+            fi
+        done
+    else
+        echo -e "${RED}Nginx sites-enabled directory does not exist. Please create it first.${NC}"
+        exit 1
+    fi
 }
 
 # Function to add a new website

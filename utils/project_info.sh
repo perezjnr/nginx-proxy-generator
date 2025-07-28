@@ -21,7 +21,7 @@ If the Nginx sites-available directory does not exist, the script prompts the us
 
 # Usage:
     To run the script, use the following command:
-    ./Nginx_Proxy_Generator.sh [options]
+    ./main.sh [options]
     # Options:
     -a, --add       Add a new website
     -r, --remove    Remove an existing website
@@ -62,17 +62,17 @@ from the sites-enabled directory and deletes the configuration file from the sit
 
 ####################################################################
 # Note:
-This script is intended for use on Debian-based systems (e.g., Ubuntu).
+This script has been tested on Debian-based systems only (e.g., Ubuntu).
 It requires sudo permissions to run.
 Make sure to run the script with sudo or as root user.
 ####################################################################
 # Example:
 To add a new website configuration, run the script with the -a or --add option:
-./Nginx_Proxy_Generator.sh -a
+./main.sh -a
 To remove an existing website configuration, run the script with the -r or --remove option:
-./Nginx_Proxy_Generator.sh -r
+./main.sh -r
 # To display the help message, run the script with the -h or --help option:
-./Nginx_Proxy_Generator.sh -h
+./main.sh -h
 ####################################################################
 # This script is provided as-is and is not guaranteed to work in all environments.
 # Use it at your own risk. It is recommended to test the script in a safe environment
