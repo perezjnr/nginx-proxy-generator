@@ -159,7 +159,7 @@ Pull requests and suggestions are welcome! Feel free to fork this repo and propo
 
 ## 📄 License
 
-GNU General Public License v3.0
+MIT
 
 ---
 
