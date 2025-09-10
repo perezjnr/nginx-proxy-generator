@@ -72,7 +72,8 @@ sudo ./main.sh
 | 5      | Display current Nginx version                |
 | 6      | Show Nginx `sites-available` directory path  |
 | 7      | Show Nginx `sites-enabled` directory path    |
-| 8      | Exit                                          |
+| 8      | Request new SSL certificate                  |
+| 9      | Exit                                          |
 
 ---
 
@@ -94,6 +95,7 @@ sudo ./main.sh [option]
 | `-i`       | `--info`            | Show detailed script information                 |
 | `-v`       | `--version`         | Display current installed Nginx version          |
 | `-s`       | `--sites-available` | Show `sites-available` directory path            |
+| '-c'       | '--certbot'         | Request new SSL certificate                      |
 | `-e`       | `--sites-enabled`   | Show `sites-enabled` directory path              |
 
 > Example:
