@@ -9,6 +9,7 @@ show_usage() {
     echo -e "  -v, --version           Show current NGINX version"
     echo -e "  -s, --sites-available   Show NGINX sites-available path"
     echo -e "  -e, --sites-enabled     Show NGINX sites-enabled path"
+    echo -e "  -c, --certbot           Request new SSL certificate"
     echo -e "  --dry-run               Simulate changes without applying them ${NC}"
 }
 
@@ -22,5 +23,6 @@ menu_options() {
     echo -e "5. Display current Nginx version"
     echo -e "6. Display current Nginx sites-available directory"
     echo -e "7. Display current Nginx sites-enabled directory"
-    echo -e "8. Exit${NC}"
+    echo -e "8. Request New SSL Certificate"
+    echo -e "9. Exit${NC}"
 }

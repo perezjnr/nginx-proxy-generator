@@ -88,6 +88,10 @@ else
                 display_nginx_sites_enabled
                 exit
                 ;;
+            -c | --certbot )
+                sudo certbot --nginx
+                exit
+                ;;
             * )
                 show_usage
                 exit
